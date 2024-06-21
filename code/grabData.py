@@ -23,12 +23,17 @@ na1 = "https://na1.api.riotgames.com"
 twentyGames = requests.get(f"{americas}/tft/match/v1/matches/by-puuid/{puuid}/ids?api_key={key}")
 print(twentyGames.json())
 
-matchInfo = []
+matchInfo = {}
 
 for game in twentyGames.json():
 
     match = requests.get(f"{americas}/tft/match/v1/matches/{game}?api_key={key}")
-    matchInfo.append(match.json())
+    game_id = match.json()["metadata"]["match_id"]
+    matchInfo[game_id] = match.json()
 
-#in 20 games want to look at units, augments, their placements, and my placement, then organize the data
+with open("data/game_data.json", "w") as f:
+    json.dump(matchInfo, f, indent=4)
+
+
+
 

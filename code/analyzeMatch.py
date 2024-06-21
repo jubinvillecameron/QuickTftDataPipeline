@@ -1,0 +1,1 @@
+#Goal here is to analyze match by match build a dictionary, so each player's spot their placement augments etc
