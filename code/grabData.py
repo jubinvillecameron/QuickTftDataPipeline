@@ -13,23 +13,25 @@ accountReq = requests.get(f"{americas}/riot/account/v1/accounts/by-riot-id/{game
 accountInfo = accountReq.json()
 puuid = accountInfo["puuid"]
 
-print("Puuid grabbed")
+print("Puuid grabbed", puuid)
 
 na1 = "https://na1.api.riotgames.com"
 
 
-#Now grab recent 20 matches, can even grab like 100 games in future
+#Now grab recent 10 matches so we're not rate limited
 
-twentyGames = requests.get(f"{americas}/tft/match/v1/matches/by-puuid/{puuid}/ids?api_key={key}")
-print(twentyGames.json())
+print("grabbing 10 games")
+tenGames = requests.get(f"{americas}/tft/match/v1/matches/by-puuid/{puuid}/ids?count=10&api_key={key}")
+print(tenGames.json())
 
 matchInfo = {}
 
-for game in twentyGames.json():
+for game in tenGames.json():
 
     match = requests.get(f"{americas}/tft/match/v1/matches/{game}?api_key={key}")
-    game_id = match.json()["metadata"]["match_id"]
-    matchInfo[game_id] = match.json()
+
+    if (match.json()["info"]['queueId'] == 1100):
+        matchInfo[game] = match.json()
 
 with open("data/game_data.json", "w") as f:
     json.dump(matchInfo, f, indent=4)

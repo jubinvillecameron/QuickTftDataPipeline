@@ -38,24 +38,57 @@ for game in data.keys():
 
     matches.append(matchInfos)
 
+    metaParticipants = data[game]['metadata']['participants']
+
     playerInfo = {}
+
+    #grab all participants and their respective names
+    for participant in metaParticipants:
+        
+        try:
+            userData = requests.get(f"https://americas.api.riotgames.com/riot/account/v1/accounts/by-puuid/{participant}?api_key={key}")
+            #print(userData)
+            userData = userData.json()
+
+        except:
+            #print(userData)
+            pass
+
+        username = userData['gameName']
+
+
+        tag = userData['tagLine']
+
+        username = username + "#" + tag
+
+
+        playerInfo['username'] = username
+        playerInfo['puuid'] = participant
+
+        players.append(playerInfo)
 
     participants = data[game]['info']['participants']
 
-    puuid = participants['puuid']
+    for participant in participants:
 
-    #now grab the users actual username
-    userData = requests.get(f"https://americas.api.riotgames.com/riot/account/v1/accounts/by-puuid/{puuid}?api_key={key}")
-    username = userData['gameName']
-    tag = userData['tagLine']
-    username = username + "#" + tag
-    playerInfo['username'] = username
-    playerInfo['puuid'] = puuid
+        board = {}
 
-    players.append(playerInfo)
+        board['puuid'] = participant['puuid']
+        board['augments'] = participant['augments']
+        board['placement'] = participant['placement']
+        board['traits'] = participant['traits']
+        board['units'] = participant['units']
+        board['matchId'] = game
 
-    #seperate board state -> traits, level, augments, units
-
-    pass
+        boards.append(board)
 
 
+
+with open("data/matches.json", "w") as f:
+    json.dump(matches, f, indent=4)
+
+with open("data/players.json", "w") as f2:
+    json.dump(players, f2, indent=4)
+    
+with open("data/boards.json", "w") as f3:
+    json.dump(boards, f3, indent=4)
