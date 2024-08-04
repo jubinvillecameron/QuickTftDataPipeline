@@ -7,3 +7,4 @@ code/__pycache__/sql_connection_string.cpython-39.pyc
 code/__pycache__/keys.cpython-39.pyc
 /code/__pycache__
 /code/__pycache__
+*.pyc

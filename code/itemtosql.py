@@ -1,5 +1,8 @@
 import pyodbc
 
+import analyzeMatch
+import grabData
+
 from sql_connection_string import connection_string
 import json
 
@@ -28,7 +31,7 @@ def import_all_items(cursor):
 
         
         cursor.commit()
-        print("Data inserted")
+        #print("Data inserted")
     
     except Exception as e:
         print("Error",e)
@@ -60,7 +63,7 @@ def import_units(cursor):
 
         
         cursor.commit()
-        print("Data inserted")
+        #print("Data inserted")
     
     except Exception as e:
         print("Error",e)
@@ -94,150 +97,91 @@ def import_augments(cursor):
 
         
         cursor.commit()
-        print("Data inserted")
-    
-    except Exception as e:
-        print("Error",e)
-        cursor.rollback()
-
-def import_users(cursor):
-
-    with open("data/players.json") as f:
-        players = json.load(f)
-
-    inserted = []
-
-    try:
-
-        insert_query = "INSERT INTO tft.players (puuid, username) VALUES (?,?)"
-        for p in players:
-
-            username = p["username"]
-            puuid = p["puuid"]
-
-            if puuid not in inserted:
-                cursor.execute(insert_query, puuid, username)
-
-                inserted.append(puuid)
-
-        cursor.commit()
+        #print("Data inserted")
     
     except Exception as e:
         print("Error",e)
         cursor.rollback()
 
 
-def import_matches(cursor):
-
-    with open("data/matches.json") as f:
-        matches = json.load(f)
+def import_match(cursor, board) -> bool:
+    """
+    Assumptions here are: If match is in database, boards must have already been added as well.
+    Returns true if exists else false
+    """
 
     try:
-
-        insert_query = "INSERT INTO tft.matches (match_id, patch, game_datetimestamp) VALUES (?,?,?)"
-
-        for m in matches:
-            match_id = m["id"]
-            patch = m["patch"]
-            game_datetimestamp = m["date"]
-
-            cursor.execute(insert_query,match_id,patch,game_datetimestamp)
-        
-        cursor.commit()
-
+        cursor.execute("SELECT 1 FROM tft.matches WHERE match_id = ?" (board['matchInfo']['id'],))
+        if cursor.fetchone()[0] is None:
+            cursor.execute("INSERT INTO tft.matches (match_id,patch,game_datetimestamp) VALUES (?,?,?)", (board['matchInfo']['id'], board['matchInfo']['patch'], board['matchInfo']['date'],))
+            return True
+    
 
     except Exception as e:
         print(e)
         cursor.rollback()
 
+    return False
 
-    pass
+def import_players(cursor, players):
+    """"Adds players to database if they're not already in there"""
+
+    try:
+        for player in players:
+
+            cursor.execute("SELECT 1 FROM tft.players WHERE puuid = ?" (player['puuid']))
+
+            if cursor.fetchone()[0] is None:
+                cursor.execute("INSERT INTO tft.players (puuid, username) VALUES (?,?)", (player['puuid'], player['username'],))
+        
+    except Exception as e:
+
+        print(e)
+        cursor.rollback()
+
+def import_traits(cursor, traits):
+    
+    pass    
+
 
 def import_boards(cursor):
 
-    #idea is to insert the boards themselves in first, and then store every trait_board, unit_board, augment_board in there
-    #need to create triggers which update the placements when things are added into the junction tables
-
-    #split up boards into the junction tables then do accordingly
+    #Import users/Boards
 
     with open("data/boards.json") as f:
         boards = json.load(f)
 
-    #grab boards id
-    board_insert_query ="""
-    INSERT INTO tft.boards (puuid, match_id, placement) 
-    VALUES (?,?,?);
-    SELECT SCOPE_IDENTITY() AS boardID;"""
-
-    trait_exits_query = "SELECT traitID FROM tft.traits WHERE traitID = ?" #Check if the trait exists
-    trait_insert_query = "INSERT INTO tft.traits (traitID, tier_current, tier_total, placement, num_units) VALUES (?,?,?,?,?)"
-    trait_board_insert_query = "INSERT INTO tft.trait_board (traitID, boardID, placement) VALUES (?,?,?)"
-
-    augment_board_insert_query = "INSERT INTO tft.augment_board (augmentID, boardID ,placement) VALUES (?,?,?)"
-
-    unit_board_insert_query = "INSERT INTO tft.unit_board (boardID, unitID, item1ID, item2ID, item3ID, placement) VALUES (?,?,?,?,?,?)"
-
-
+    #boardUID = matchID_placement#
     
     for board in boards:
 
         placement = board["placement"]
-
+        boarduid = board["matchId"] + "_" + str(placement)
+        
         #first put board in
         try:
+
+            #if match in database skip (function adds to database if its not)
+            if import_match(cursor, board):
+                continue
             
-            cursor.execute(board_insert_query, board["puuid"], board["matchID"], placement)
-            cursor.nextset()
-            board_id = cursor.fetchone()[0]
+            #Add players to database if they don't exist
+            import_players(cursor, board['players'])
 
-        
-        
-            #Traits
+            #Inside actual board data
 
-            for trait in board['traits']:
-
-                #first check if the trait is inside of our trait table
-
-                cursor.execute(trait_exits_query, trait["name"])
-
-                print(trait["name"], "Inserting..")
-
-                inTable = cursor.fetchone()
-                
-
-
-
-                #if it's not in the table
-                if inTable == None:
-                    #add the trait to the trait table
-                    cursor.execute(trait_insert_query, trait["name"], trait["tier_current"], trait["tier_total"], placement, trait["num_units"])
-                
-                #now put in our junction table
-                cursor.execute(trait_board_insert_query, trait["name"], board_id, placement)
-
-            #augments
-            for augment in board['augments']:
-                
-                cursor.execute(augment_board_insert_query, augment, board_id ,placement)
             
 
-            #units
-
-            for unit in board["units"]:
-                #need to also account for all of the items a unit can potentially have
-
-                items = [None,None,None]
-
-                for i in range(len(unit["itemNames"])):
-                    
-                    items[i] = unit["itemNames"]
-
-                cursor.execute(unit_board_insert_query, board_id, unit["character_ID"], items[0], items[1], items[2], placement)
 
 
+            
+
+
+            pass
 
 
         except Exception as e:
+            print("ERROR")
             print(e)
             cursor.rollback()
             continue
@@ -245,7 +189,7 @@ def import_boards(cursor):
 
 
 
-        cursor.commit()
+    cursor.commit()
 
 
 
@@ -255,13 +199,23 @@ def import_boards(cursor):
 
 if __name__ == "__main__":
 
-    conn = pyodbc.connect(connection_string)
-    #print(conn)
-    cursor = conn.cursor()
+    #generate our game data
+    puuid = grabData.grab_challengers(1)
+    grabData.get_gamedata(puuid)
 
-    #import our data into sql
-    import_boards(cursor)
-    cursor.close()
-    conn.close()
-    print("Data Inserted")
+    #get the match analytics
+    analyzeMatch.analyze_match()
 
+    #TODO: is it's already inserted ignore it and insert the next thing
+
+
+
+    # conn = pyodbc.connect(connection_string)
+    # #print(conn)
+    # cursor = conn.cursor()
+
+    # import_matches(cursor)
+    # import_users(cursor)
+    # import_boards(cursor)
+
+    # cursor.close()
