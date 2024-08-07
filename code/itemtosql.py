@@ -66,7 +66,7 @@ def import_units(cursor):
         #print("Data inserted")
     
     except Exception as e:
-        print("Error",e)
+        print("import_augments:", e, sep = " ")
         cursor.rollback()
 
 
@@ -100,25 +100,24 @@ def import_augments(cursor):
         #print("Data inserted")
     
     except Exception as e:
-        print("Error",e)
+        print("import_augments:", e, sep = " ")
         cursor.rollback()
 
 
 def import_match(cursor, board) -> bool:
     """
     Assumptions here are: If match is in database, boards must have already been added as well.
-    Returns true if exists else false
+    Returns true if inserted inside of database else false
     """
-
     try:
-        cursor.execute("SELECT 1 FROM tft.matches WHERE match_id = ?", (board['matchInfo']['id']))
-        if cursor.fetchone()[0] is None:
-            cursor.execute("INSERT INTO tft.matches (match_id,patch,game_datetimestamp) VALUES (?,?,?)", (board['matchInfo']['id'], board['matchInfo']['patch'], board['matchInfo']['date']))
+        cursor.execute("SELECT 1 FROM tft.matches WHERE matchID = ?", (board['matchInfo']['id']))
+        if cursor.fetchone() is None:
+            cursor.execute("INSERT INTO [tft].[matches] (matchID,patch,game_datetimestamp) VALUES (?,?,?)", (board['matchInfo']['id'], board['matchInfo']['patch'], board['matchInfo']['date']))
             return True
     
 
     except Exception as e:
-        print(e)
+        print("import_match:", e, sep = " ")
         cursor.rollback()
 
     return False
@@ -131,12 +130,11 @@ def import_players(cursor, players):
 
             cursor.execute("SELECT 1 FROM tft.players WHERE puuid = ?", (player['puuid']))
 
-            if cursor.fetchone()[0] is None:
+            if cursor.fetchone() is None:
                 cursor.execute("INSERT INTO tft.players (puuid, username) VALUES (?,?)", (player['puuid'], player['username']))
         
     except Exception as e:
-
-        print(e)
+        print("import_players:", e, sep = " ")
         cursor.rollback()
 
 
@@ -145,14 +143,15 @@ def import_board(cursor, puuid, matchid, placement, boarduid):
     Inserts board into the database
     boarduid = matchid_placement
     """
+    
 
     #Since we skip the match if we already have it in data, no errors should happen
     try:
-        cursor.execute("INSERT INTO tft.boards (puuid, matchID, placement, boardUID) VALUES (?,?,?,?)", (puuid, matchid, placement, boarduid))
+        cursor.execute("INSERT INTO [tft].[boards] (puuid, matchID, placement, boardUID) VALUES (?,?,?,?)", (puuid, matchid, placement, boarduid))
     
     except Exception as e:
-
-        print(e)
+        print("import_board:", e, sep = " ")
+        
         cursor.rollback()
 
 
@@ -171,10 +170,10 @@ def import_traits(cursor, traits, boarduid, placement):
         for trait in traits:
             #first check and see if the trait exists in the database
 
-            cursor.execute('SELECT * FROM tft.traits WHERE EXISTS (SELECT traitID AND tier_total AND tier_current FROM tft.traits WHERE traitID = ? AND tier_total = ? AND tier_current = ?)', (trait['name'], trait['tier_current'], trait['tier_total']))
+            cursor.execute('SELECT * FROM tft.traits WHERE EXISTS (SELECT 1 FROM tft.traits WHERE traitID = ? AND tier_total = ? AND tier_current = ?)', (trait['name'], trait['tier_total'], trait['tier_current']))
 
             #If it doesn't exist in table we insert
-            if not cursor.fetchone()[0]:
+            if not cursor.fetchone():
                 cursor.execute('INSERT INTO tft.traits (traitID, tier_current, tier_total, placement) VALUES (?,?,?,?)', (trait['name'], trait['tier_current'], trait['tier_total'], placement))
             
             #Add to junction table
@@ -182,7 +181,7 @@ def import_traits(cursor, traits, boarduid, placement):
     
 
     except Exception as e:
-        print(e)
+        print("import_traits:", e, sep = " ")
         cursor.rollback()
 
 def import_augment_board(cursor, augments, placement, boarduid):
@@ -192,7 +191,7 @@ def import_augment_board(cursor, augments, placement, boarduid):
         for augment in augments:
             cursor.execute('INSERT INTO tft.augment_board (augmentID, placement, boardUID) VALUES (?,?,?)', (augment, placement, boarduid))
     except Exception as e:
-        print(e)
+        print("import_augment_board:", e, sep = " ")
         cursor.rollback()
 
 def import_unit_board(cursor, units, placement, boarduid):
@@ -204,7 +203,7 @@ def import_unit_board(cursor, units, placement, boarduid):
             cursor.execute('INSERT INTO tft.unit_board (unitID, item1ID, item2ID, item3ID, placement, boarduid) VALUES (?,?,?,?,?,?)', (unit['character_id'], item1, item2, item3, placement, boarduid))
 
     except Exception as e:
-        print(e)
+        print("import_unit_board:", e, sep = " ")
         cursor.rollback()
 
     pass
@@ -220,7 +219,7 @@ def import_boards(cursor):
     for boards in games.values():
         
         #if match in database skip (function adds to database if its not)
-        if import_match(cursor, boards):
+        if not import_match(cursor, boards):
             continue
 
         #Add players to database if they don't exist
@@ -234,7 +233,7 @@ def import_boards(cursor):
             puuid = board['puuid']
             #first put board in
             try:
-
+                #Parent info
                 import_board(cursor, puuid, matchid, placement, boarduid)
 
                 #trait_board junction table
@@ -249,8 +248,7 @@ def import_boards(cursor):
                 import_unit_board(cursor, units, placement, boarduid)
 
             except Exception as e:
-                print("ERROR")
-                print(e)
+                print("import_boards_MAIN:", e, sep = " ")
                 cursor.rollback()
                 continue
             
@@ -274,16 +272,15 @@ if __name__ == "__main__":
     # #get the match analytics
     # analyzeMatch.analyze_match()
 
-    #TODO: is it's already inserted ignore it and insert the next thing
-
-    with open("data/boards.json") as f:
-        games = json.load(f)
-    
-
+    #invalid column name makes no sense but is current bug
 
     conn = pyodbc.connect(connection_string)
     #print(conn)
     cursor = conn.cursor()
+    #cursor.execute("INSERT INTO tft.players (puuid, username) VALUES (?,?)", ('test', 'camwavy'))
+    #cursor.execute("INSERT INTO [tft].[matches] (matchID,patch,game_datetimestamp) VALUES (?,?,?)", ('test2', 14.2, 121231245))
+    #cursor.commit()
+
     print("importing boards")
     import_boards(cursor)
 
