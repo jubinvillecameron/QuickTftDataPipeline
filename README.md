@@ -1,3 +1,3 @@
 # LeagueToTableau
 
-Idea is that we take my league of legends TFT information, and build information based off how I've played.
+Takes tft data from riot games databases and puts it in my database
