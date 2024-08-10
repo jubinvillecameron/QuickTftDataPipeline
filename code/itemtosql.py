@@ -274,7 +274,7 @@ def import_boards(connection):
 if __name__ == "__main__":
 
     #generate our game data
-    puuid = grabData.grab_challengers(1)
+    puuid = grabData.grab_challengers(3)
     grabData.get_gamedata(puuid)
 
     # #get the match analytics

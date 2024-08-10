@@ -53,17 +53,17 @@ def grab_challengers(rank):
         raise(Exception)
 
 
-    #Doing diamond players right now since it's the start of the season
+    #Doing gm players right now since it's the start of the season
     #challengers = requests.get(f"https://na1.api.riotgames.com/tft/league/v1/challenger?queue=RANKED_TFT&api_key={key}")
-    challengers = requests.get(f"https://na1.api.riotgames.com/tft/league/v1/entries/DIAMOND/I?queue=RANKED_TFT&page=1&api_key={key}")
+    challengers = requests.get(f"https://na1.api.riotgames.com/tft/league/v1/grandmaster?queue=RANKED_TFT&api_key={key}")
 
     challengers = challengers.json()
 
 
     #entries is where I get the specific challengers puuid
-    #challengerEntries = challengers["entries"]
+    challengerEntries = challengers["entries"]
 
-    for index, value in enumerate(challengers):
+    for index, value in enumerate(challengerEntries):
         
         if(index + 1 == rank):
             return grab_puuid_summonerid(value)
