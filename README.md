@@ -1,3 +1,4 @@
 # LeagueToTableau
 
-Takes tft data from riot games databases and puts it in my database
+Quick and inneficcient data pipeline to my sql server for tableau data visualization.
+Allows me to look at TFT trends
